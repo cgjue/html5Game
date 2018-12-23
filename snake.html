@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh_CN">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+ <meta http-equiv="X-UA-Compatible" content="ie=edge">
+ <title>贪吃蛇</title>
+ <style>
+  body {
+   margin: 0;
+   padding: 0;
+   justify-content: center;
+   align-items: center;
+  }
+  div{
+    display:inline-block;
+  }
+  .cmd{
+    height: 30px;
+    text-align: center;
+    margin-left: 15%;
+  }
+ </style>
+</head>
+<body>
+ <div class="cmd">
+    <button id="play" onclick="play()">play</button>
+    <div>本轮成绩:<span id="grade">0</span> 
+    最佳成绩:<span id="best">0</span></div>
+ </div>
+ 
+    <canvas id="can" style="background-color: black;margin:3px;">对不起，您的浏览器不支持canvas</canvas>
+ <script>
+  var snakeData = localStorage.getItem('snake');
+  var bestIndex = localStorage.getItem('bestIndex');
+  if(!snakeData){
+    snakeData = [];
+    bestIndex = -1;
+  }else{
+    snakeData = JSON.parse(snakeData);
+    bestIndex = parseInt(bestIndex);
+    document.getElementById('best').innerHTML = snakeData[bestIndex].grade;
+    
+  }
+  var size=25, speed=150, pause=0;
+  var x=~~(screen.width/size), y=~~((screen.height-210)/size);
+  var convas = document.getElementById('can');
+  convas.width = x*size;
+  convas.height = y*size;
+  var directions=[-1, -x, 1, x], //1表示向右，-1表示向左，size表示向下，-size表示向上
+  snake , eat, grade, difficult,begin, end, //snake队列表示蛇身，初始节点存在但不显示
+  timer=0,
+  direction = 1, food, n, over=1,     //方向 、食物的位置、与下次移动的位置有关
+  box = convas.getContext('2d');
+         //从0到399表示box里[0~19]*[0~19]的所有节点，每sizepx一个节点
+  function init(){
+    box.clearRect(0,0,x*size,y*size); 
+    snake = [y/2*x+x/2+x, y/2*x+x/2];  //snake队列表示蛇身，初始节点存在但不显示
+    direction = x;   //1表示向右，-1表示向左，size表示向下，-size表示向上
+    food = nextFood(), over=0, pause=0, eat=0, grade=0, speed=150;
+    begin = new Date();    
+    updateGrade();
+    draw(food, "yellow");
+  }
+  function updateGrade(){
+        document.getElementById('grade').innerHTML = grade;
+        if(bestIndex<0){
+          document.getElementById('best').innerHTML = grade;
+        }else if(snakeData[bestIndex].grade<grade){
+          document.getElementById('best').innerHTML = grade;
+        }
+  }
+  function nextFood(){
+    var f;
+    while (snake.indexOf(f = ~~(Math.random() * x*y)) > 0);
+    return f;
+  }
+  function draw(seat, color) {
+   box.fillStyle = color;
+   //console.log(seat);
+   box.fillRect((seat%x)*size+1,~~(seat/x)*size+1, size-1, size-1); //用color填充一个矩形，以前两个参数为x，y坐标，后两个参数为宽和高。
+  }
+  document.onkeydown = function(evt) {
+         //当键盘上下左右键摁下的时候改变direction
+   var keyCode =(evt || event).keyCode;
+   if(keyCode==32){//回车键
+       pause=!pause;
+       if(!pause){
+            play();
+       }
+   }else {   
+        direction = snake[1] - snake[0] == (n = directions[ keyCode- 37] || direction) ? direction : n;
+        //console.log(snake[1] - snake[0], n, direction);
+   } 
+ };
+document.addEventListener('touchstart', handleTouchStart, false);
+document.addEventListener('touchmove', handleTouchMove, false);
+
+var xDown = null;
+var yDown = null;
+
+function handleTouchStart(evt) {
+  xDown = evt.touches[0].clientX;
+  yDown = evt.touches[0].clientY;
+};
+
+function handleTouchMove(evt) {
+  evt.preventDefault();
+  if (!xDown || !yDown) {
+    return;
+  }
+  var xUp = evt.touches[0].clientX;
+  var yUp = evt.touches[0].clientY;
+
+  var xDiff = xDown - xUp;
+  var yDiff = yDown - yUp;
+  n = -xDiff/Math.abs(xDiff);
+  if (Math.abs(xDiff) < Math.abs(yDiff)) {
+    n = -yDiff/Math.abs(yDiff)*x;
+  }
+  if(n!=-direction)direction=n;
+  xDown = null;
+  yDown = null;
+};
+  function store_grade(begin, end){
+    if(bestIndex<0){bestIndex=0}
+    else if(grade> snakeData[bestIndex].grade){bestIndex=snakeData.length;}
+    item = {
+      eat: eat,
+      begin: begin,
+      end: end,
+      grade: grade
+    }
+    snakeData.push(item);
+    localStorage.setItem('snake', JSON.stringify(snakeData));
+    localStorage.setItem('bestIndex', JSON.stringify(bestIndex));
+  }
+  function run() {
+    snake.unshift(n = snake[0] + direction); 
+             //此时的n为下次蛇头出现的位置，n进入队列
+    if(snake.indexOf(n, 1) > 0 || n < 0 || n>x*y-1 || direction == 1 && n % x == 0 || direction == -1 && n % x == x-1) {
+         //if语句判断贪吃蛇是否撞到自己或者墙壁，碰到时返回，结束程序
+       // console.log(x,y, n, direction);				
+        over=1;
+        clearTimeout(timer);
+        end = new Date();
+        min = (end - begin)/36000;
+        store_grade(begin, end);
+        return alert("GAME OVER!\n" + "eat: " + eat+ ", time: " + min + "min, "+ "grade: " + grade);
+    }
+    draw(n, "lime");  //画出蛇头下次出现的位置
+    if(n==food) {   //如果吃到食物时，产生一个蛇身以外的随机的点，不会去掉蛇尾
+        eat+=1;
+        if(!(eat%10))speed -=eat/10;         
+        grade+=(150 - speed+1)*5; 
+        updateGrade();       
+        food = nextFood();
+        draw(food, "yellow");
+    } else {    //没有吃到食物时正常移动，蛇尾出队列
+        draw(snake.pop(),"black");
+    }
+    if(!pause)
+        timer = setTimeout(run, speed);
+  }
+  function play(){
+        if(over){
+            init();
+        }
+        run();
+    }
+ </script>
+</body>
+</html>
