@@ -301,7 +301,7 @@
             //进行消行动作
             total +=count;
             score +=~~(Math.log(level*4)*count*count*2);
-            if(score > 0 && (score-(level*(level+1))*300/2)%(level*300)==0){
+            if(score > 0 && (score-(level*(level+1))*300/2)>(level*300)){
                 level+=1;
             }
             context.fillStyle="black";
