@@ -44,14 +44,14 @@
   }
   var size=25, speed=150, pause=0;
   var x=~~(screen.width/size), y=~~((screen.height-210)/size);
-  var convas = document.getElementById('can');
-  convas.width = x*size;
-  convas.height = y*size;
+  var canvas = document.getElementById('can');
+  canvas.width = x*size;
+  canvas.height = y*size;
   var directions=[-1, -x, 1, x], //1表示向右，-1表示向左，size表示向下，-size表示向上
   snake , eat, grade, difficult,begin, end, //snake队列表示蛇身，初始节点存在但不显示
   timer=0,
   direction = 1, food, n, over=1,     //方向 、食物的位置、与下次移动的位置有关
-  box = convas.getContext('2d');
+  box = canvas.getContext('2d');
          //从0到399表示box里[0~19]*[0~19]的所有节点，每sizepx一个节点
   function init(){
     box.clearRect(0,0,x*size,y*size); 

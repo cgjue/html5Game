@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+ <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <title>俄罗斯方块</title>
+    
+    <style type="text/css">
+        /*整个画布*/
+        body {
+        margin: 0;
+        padding: 0;
+        justify-content: center;
+        align-items: center;
+        }
+        
+        #tetris {
+            border: 6px solid grey;
+           /* margin: 6% 35%;*/
+        }
+        #quickDown, #round, #moveLeft, #moveRight{
+            background: black;
+            color: yellow;
+            text-align: center;
+            height: 40px;
+            font-size: 25px;
+            cursor: pointer;
+            margin-top:10px;
+            width:100px;
+        }
+        
+        /*游戏面板*/
+    </style>
+
+</head>
+
+<body>
+
+    <canvas id="tetris" ></canvas>
+    <div onclick="round()" id="round">变换</div>
+    <div onclick="moveLeft()" id="moveLeft">左移</div>    
+    <div onclick="moveRight()" id="moveRight">右移</div>
+    <div onclick="quickDown()" id="quickDown">落地</div>
+    <script type="text/javascript">
+        var bestScore = localStorage.getItem('bestScore')|0;
+        var canvas = document.getElementById("tetris");
+        var padding = 6,
+            minX = 0,
+            maxX = 10,
+            minY = 0,
+            maxY = 18,
+            score = 0,
+            level = 1,
+            total =0;
+        var size = Math.min(~~((screen.width-480)/maxX), ~~((screen.height-280)/maxY));
+        size = Math.max(size, 20);
+        canvas.width = (maxX+7)*size;
+        canvas.height = maxY*size;
+        canvas.style.cssText = "margin-top:0px;margin-left:"+ 
+            Math.max((screen.width-canvas.width-50)/2, 4)+"px;background-color: black;"; 
+        document.getElementById("round").style.cssText = "margin-left:" + (screen.width/2 -50) +"px;";
+        document.getElementById("moveLeft").style.cssText = "margin-left:" + (screen.width/2 -150) +"px;";
+        document.getElementById("moveRight").style.cssText = "margin-left:" + (screen.width/2 + 50) +"px;margin-top:-40px";
+        document.getElementById("quickDown").style.cssText = "margin-left:" + (screen.width/2 -50) +"px;";
+        var context = canvas.getContext("2d");
+        
+        var gameMap = new Array(); //游戏地图，二维数组
+        var gameTimer;
+        initGame();
+        //绘制垂直线条
+        //drawGrid();
+        var arrays = basicBlockType();
+        var blockIndex;
+        //随机画一个方块意思意思
+        var block;
+        var blockNI = getRandomIndex()
+        var blockN = getPointByCode(blockNI);
+        nextBlock();
+        drawBlock(block);
+        /**
+ 
+  * 初始化游戏地图
+ 
+  */
+        function initGame() {
+            for (var i = 0; i < maxY; i++) {
+                var row = new Array();
+                for (var j = 0; j < maxX; j++) {
+                    row[j] = false;
+                }
+                gameMap[i] = row;
+            }
+            score = 0,
+            level = 1;
+            total = 0;
+            drawLevelScore(0);
+        }
+        /**
+ 
+  * 方块旋转
+ 
+  * 顺时针：
+ 
+  * A.x =O.y + O.x - B.y
+ 
+  * A.y =O.y - O.x + B.x
+ 
+  */
+        function round() {
+            //正方形的方块不响应旋转  
+            if (blockIndex == 4) {
+                return;
+            }
+            var o = block[0];
+            //循环处理当前的方块，找新的旋转点
+            for (var i = 1; i < block.length; i++) {
+                //旋转后的位置不能与现有格子的方块冲突
+                var tempX = o.y + o.x - block[i].y;
+                var tempY = o.y - o.x + block[i].x;
+                if (isOverZone(tempX, tempY)) {
+                    return; //不可旋转
+                }
+            }
+            clearBlock();
+            //可以旋转，设置新的旋转后的坐标
+            for (var i = 1; i < block.length; i++) {
+                var o = block[0];
+                var point = block[i];
+                //旋转后的位置不能与现有格子的方块冲突
+                var tempX = o.y + o.x - block[i].y;
+                var tempY = o.y - o.x + block[i].x;
+                block[i] = {
+                    x: tempX,
+                    y: tempY
+                };
+            }
+            drawBlock();
+        }
+
+        function moveDown() {
+
+            var overFlag = canOver();
+            if (overFlag) {
+                //如果不能向下移动了，将当前的方块坐标载入地图
+                window.clearTimeout(gameTimer);
+                add2GameMap();
+                //清除游戏区域内的不同颜色的格子，使用单一颜色重新绘制地图堆积物
+                redrawGameMap();
+                return; //游戏结束
+            }
+
+            var flag = moveTo(0, 1);
+            //如果可以移动，则继续移动
+            if (flag) {
+                return;
+            }
+            //如果不能向下移动了，将当前的方块坐标载入地图
+            add2GameMap();
+
+            var count = clearLines();
+            //清除游戏区域内的不同颜色的格子，使用单一颜色重新绘制地图堆积物
+            redrawGameMap();
+            //如果不能向下移动，则继续下一个方块
+            nextBlock();
+            drawLevelScore(count);
+        }
+
+        /**
+ 
+  * 消行动作，返回消除的行数
+ 
+  */
+        function clearLines() {
+            var count = 0;
+            /*var clearRowList = new Array();
+              for (var i = 0; i < maxY; i++) {
+                var flag = true;
+                for (var j = 0; j < maxX; j++) {
+                    if (gameMap[i][j] == false) {
+                        flag = false;
+                        break;
+                    }
+                }
+                if (flag) {
+                    clearRowList.push(i); //记录消除行号的索引
+                }
+            } 
+            
+            var clearRows = clearRowList.length;
+            //所谓的消行就是将待消除行的索引，下方所有的格子上移动
+            for (var x = 0; x < clearRows; x++) {
+                var index = clearRowList[x];
+                for (var i = index; i > 0; i--) {
+                    for (var j = 0; j < maxX; j++) {
+                        gameMap[i][j] = gameMap[i - 1][j];
+                    }
+                }
+            }
+            if (clearRows > 0) {
+                for (var i = 0; i < maxY; i++) {
+                    //此处可以限制满足相关条件的方块进行清除操作&& j < clearRowList[clearRows - 1]
+                    for (var j = 0; j < maxX; j++) {
+                        if (gameMap[i][j] == false) {
+                            clearBlockByPoint(i, j);
+                        }
+                    }
+                }
+            }*/
+            for (var i = 0; i < block.length; i++) {
+                var flag = true;
+                var y = block[i].y;
+                for (var j = 0; j < maxX; j++) {
+                    if (gameMap[y][j] == false) {
+                        flag = false;
+                        break;
+                    }
+                }
+                if (flag) {
+                    count +=1;
+                    for (var i = y; i > 0; i--) {
+                        for (var j = 0; j < maxX; j++) {
+                            gameMap[i][j] = gameMap[i - 1][j];
+                        }
+                    }
+                }
+            }
+            return count;
+        }
+        /**
+ 
+  * 重绘游戏地图
+ 
+  */
+        function redrawGameMap() {
+            for (var i = 0; i < maxY; i++) {
+                for (var j = 0; j < maxX; j++) {
+                    if (gameMap[i][j]) {
+                        roadBlock(j, i);
+                    }
+                }
+            }
+            drawGrid();
+        }
+        /**
+ 
+  * 打印阴影地图
+ 
+  */
+        function drawShadowBlock() {
+            var currentBlock = block;
+            var shadowPoint = getShadowPoint();
+            if (shadowPoint != null && shadowPoint.length > 0) {
+                for (var i = 0; i < shadowPoint.length; i++) {
+                    var point = shadowPoint[i];
+                    if (point == null) {
+                        continue;
+                    }
+                    var start = point.x * size;
+                    var end = point.y * size;
+                    context.fillStyle = "#abcdef";
+                    context.fillRect(start, end, size, size);
+                    context.strokeStyle = "black";
+                    context.strokeRect(start, end, size, size);
+                }
+            }
+        }
+        /**
+ 
+  * 返回最多可移动到的坐标位置（统计总共可以下落多少步骤）
+ 
+  * @return最多可移动到的坐标位置
+ 
+  */
+        function getShadowPoint() {
+            var nps = canMove(0, 1, block);
+            var last = null;
+            if (nps != null) {
+                last = nps;
+                while ((nps = canMove(0, 1, nps)) != null) {
+                    last = nps;
+                }
+            }
+            return last;
+        }
+
+        function canOver() {
+            for (var i = 0; i < block.length; i++) {
+                if (isOverZone(block[i].x, block[i].y)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function drawLevelScore(count) {
+            //进行消行动作
+            total +=count;
+            score +=~~(Math.log(level*4)*count*count*2);
+            if(score > 0 && (score-(level*(level+1))*300/2)%(level*300)==0){
+                level+=1;
+            }
+            context.fillStyle="black";
+            context.fillRect((maxX+1)*size, (maxY+1)/2*size, 150, 250)
+            context.font="20px Georgia";
+            context.fillStyle = 'green';
+            var txt1 = "等级: "+ level;
+            context.fillText(txt1,(maxX+1)*size, (maxY+3)/2*size);
+            var txt2 = "已消除: "+ total;
+            context.fillText(txt2,(maxX+1)*size, (maxY+6)/2*size);
+            var txt3 = "成绩: " + score;            
+            context.fillText(txt3,(maxX+1)*size, (maxY+9)/2*size);
+            if(bestScore<score){
+                bestScore = score;
+                localStorage.setItem("bestScore", bestScore);            
+            }            
+            var txt4 = "最佳: " + bestScore;
+            context.fillText(txt4,(maxX+1)*size, (maxY+12)/2*size);
+            
+        }
+        /**
+ 
+  * 将不能移动的各种填充至地图
+ 
+  */
+        function add2GameMap() {
+            for (var i = 0; i < block.length; i++) {
+                gameMap[block[i].y][block[i].x] = true; //某个格子标记为堆积物
+            }
+        }
+
+        function moveLeft() {
+            moveTo(-1, 0);
+        }
+
+        function moveRight() {
+            moveTo(1, 0);
+        }
+
+        function quickDown() {
+            while (moveTo(0, 1));
+        }
+
+        function moveTo(moveX, moveY) {
+            var move = canMove(moveX, moveY, block); //判定是否可以移动
+            if (move == null) {
+                return false;
+            }
+            clearBlock();
+            for (var i = 0; i < block.length; i++) {
+                block[i].x = block[i].x + moveX;
+                block[i].y = block[i].y + moveY;
+            }
+            drawBlock();
+            return true;
+        }
+        /**
+ 
+  * 下一个方块
+ 
+  */
+        function nextBlock() {
+            blockIndex = blockNI;
+            block = blockN;
+            for (var i = 0; i < blockN.length; i++) {
+                var start = (blockN[i].x +maxX-1)* size;
+                var end = ~~(blockN[i].y +maxY/2-3) * size;
+                context.clearRect(start-1, end-1, size+2, size+2);
+            }
+            blockNI = getRandomIndex();
+            blockN = getPointByCode(blockNI);
+            for (var i = 0; i < blockN.length; i++) {
+                var start = (blockN[i].x +maxX-1)* size;
+                var end = ~~(blockN[i].y +maxY/2-3) * size;
+                context.fillStyle = getBlockColorByIndex(blockNI);
+                context.fillRect(start, end, size, size);
+                context.strokeStyle = "black";
+                context.strokeRect(start, end, size, size);
+            }
+        }
+        document.onkeydown = function (evt) {
+            var key = window.event ? evt.keyCode : evt.which;
+            switch (key) {
+                case 38: //向上旋转 W
+                    round();
+                    break;
+                case 40: //向下移动 S
+                    moveDown();
+                    break;
+                case 37: //向左移动 A
+                    moveLeft();
+                    break;
+                case 39: //向右移动 D
+                    moveRight();
+                    break;
+                case 32: //空格键快速下落到底
+                    quickDown();
+                    break;
+            }
+        }
+        document.addEventListener('touchstart', handleTouchStart, false);
+        document.addEventListener('touchmove', handleTouchMove, false);
+
+        var xDown = null;
+        var yDown = null;
+
+        function handleTouchStart(evt) {
+            xDown = evt.touches[0].clientX;
+            yDown = evt.touches[0].clientY;
+        };
+
+        function handleTouchMove(evt) {
+            evt.preventDefault();
+            if (!xDown || !yDown) {
+                return;
+            }
+            var key;
+            var xUp = evt.touches[0].clientX;
+            var yUp = evt.touches[0].clientY;
+
+            var xDiff = xDown - xUp;
+            var yDiff = yDown - yUp;
+            key = -xDiff/Math.abs(xDiff) + 38;
+            if (Math.abs(xDiff) < Math.abs(yDiff)) {
+                key = -yDiff/Math.abs(yDiff) + 39;
+            }
+            switch (key) {
+                case 38: //向上旋转 W
+                    round();
+                    break;
+                case 40: //向下移动 S
+                    moveDown();
+                    break;
+                case 37: //向左移动 A
+                    moveLeft();
+                    break;
+                case 39: //向右移动 D
+                    moveRight();
+                    break;
+                case 32: //空格键快速下落到底
+                    quickDown();
+                    break;
+            }
+            xDown = null;
+            yDown = null;
+        };
+        /**
+ 
+  * 判定是否可以移动
+ 
+  * @parammoveX 横向移动的个数
+ 
+  * @parammoveY 纵向移动的个数
+ 
+  */
+        function canMove(moveX, moveY, currentBlock) {
+            var newPoints = new Array();
+            for (var i = 0; i < currentBlock.length; i++) {
+                var tempX = currentBlock[i].x + moveX;
+                var tempY = currentBlock[i].y + moveY;
+                if (isOverZone(tempX, tempY)) {
+                    return null;
+                }
+            }
+            for (var i = 0; i < currentBlock.length; i++) {
+                var tempX = currentBlock[i].x + moveX;
+                var tempY = currentBlock[i].y + moveY;
+                newPoints[i] = {
+                    x: tempX,
+                    y: tempY
+                };
+            }
+            return newPoints;
+        }
+        /**
+ 
+  * 判定是否可以移动
+ 
+  * @paramx 预移动后的横坐标
+ 
+  * @paramy 预移动后的纵坐标
+ 
+  */
+        function isOverZone(x, y) {
+            return x < minX || x >= maxX || y < minY || y >= maxY || gameMap[y][x];
+        }
+        document.body.click();
+        function run(){
+            gameTimer = window.setTimeout(run, 800-(level-1)*30);
+            moveDown();
+        }
+        run();
+
+        /**
+ 
+  * 初始化方块的基础数据
+ 
+  */
+        function basicBlockType() {
+            var arrays = new Array();
+            arrays[0] = [{
+                x: 4,
+                y: 0
+            }, {
+                x: 3,
+                y: 0
+            }, {
+                x: 5,
+                y: 0
+            }, {
+                x: 6,
+                y: 0
+            }];
+            arrays[1] = [{
+                x: 4,
+                y: 0
+            }, {
+                x: 3,
+                y: 0
+            }, {
+                x: 5,
+                y: 0
+            }, {
+                x: 4,
+                y: 1
+            }];
+            arrays[2] = [{
+                x: 4,
+                y: 0
+            }, {
+                x: 3,
+                y: 0
+            }, {
+                x: 5,
+                y: 0
+            }, {
+                x: 3,
+                y: 1
+            }];
+            arrays[3] = [{
+                x: 4,
+                y: 0
+            }, {
+                x: 5,
+                y: 0
+            }, {
+                x: 3,
+                y: 1
+            }, {
+                x: 4,
+                y: 1
+            }];
+            arrays[4] = [{
+                x: 4,
+                y: 0
+            }, {
+                x: 5,
+                y: 0
+            }, {
+                x: 4,
+                y: 1
+            }, {
+                x: 5,
+                y: 1
+            }];
+            arrays[5] = [{
+                x: 4,
+                y: 0
+            }, {
+                x: 3,
+                y: 0
+            }, {
+                x: 5,
+                y: 0
+            }, {
+                x: 5,
+                y: 1
+            }];
+            arrays[6] = [{
+                x: 4,
+                y: 0
+            }, {
+                x: 3,
+                y: 0
+            }, {
+                x: 4,
+                y: 1
+            }, {
+                x: 5,
+                y: 1
+            }];
+            return arrays;
+        }
+
+        function basicBlockColor() {
+            return ["#A00000", "#A05000", "#A0A000", "#00A000", "#00A0A0", "#0000A0", "#A000A0"];
+        }
+
+        function getBlockColorByIndex(typeCodeIndex) {
+            var arrays = basicBlockColor();
+            return arrays[typeCodeIndex];
+        }
+        /**
+ 
+  * 根据编号返回指定编号的方块
+ 
+  * @paramtypeCodeIndex 方块编号索引
+ 
+  */
+        function getPointByCode(typeCodeIndex) {
+            var arrays = basicBlockType();
+            return arrays[typeCodeIndex];
+        }
+        /**
+ 
+  * 获取随即出现方块的范围值
+ 
+  * @paramlens 随机数的范围
+ 
+  */
+        function getRandomIndex() {
+            return parseInt(Math.random() * (arrays.length - 1), 10);
+        }
+        /**
+         * 绘制方块，按格子单个绘制
+         */
+        function drawBlock() {
+            drawGrid();
+            for (var i = 0; i < block.length; i++) {
+                var start = block[i].x * size;
+                var end = block[i].y * size;
+                context.fillStyle = getBlockColorByIndex(blockIndex);
+                context.fillRect(start, end, size, size);
+                context.strokeStyle = "black";
+                context.strokeRect(start, end, size, size);
+            }
+            drawShadowBlock();
+        }
+        /**
+ 
+  * 绘制障碍物
+ 
+  */
+        function roadBlock(x, y) {
+            context.fillStyle = "darkgray";
+            var start = x * size;
+            var end = y * size;
+            context.fillRect(start, end, size, size);
+        }
+        /**
+ 
+  * 绘制新的方块先清除之前的方块
+ 
+  */
+        function clearBlock() {
+            for (var i = 0; i < block.length; i++) {
+                var start = block[i].x * size;
+                var end = block[i].y * size;
+                context.clearRect(start, end, size, size);
+            }
+        }
+        /**
+         
+          * 根据坐标清除指定格子的内容
+         
+          * @paramx 横坐标
+         
+          * @paramy 纵坐标
+         
+          */
+        function clearBlockByPoint(x, y) {
+            var start = y * size;
+            var end = x * size;
+            context.clearRect(start, end, size, size);
+        }
+        /**
+ 
+  * 清掉所有位置的空白格的绘图
+ 
+  */
+        function clearAllNullPoint() {
+            for (var i = 0; i < maxY; i++) {
+                for (var j = 0; j < maxX; j++) {
+                    if (gameMap[i][j] == false) {
+                        clearBlockByPoint(i, j);
+                    }
+                }
+            }
+        }
+        /**
+ 
+  * 绘制网格线
+ 
+  * @paramcontext 绘图对象
+ 
+  */
+        function drawGrid() {
+            clearAllNullPoint(); //清除掉当前方块下落位置造成的阴影
+            context.strokeStyle = "grey"; //画笔颜色
+            for (var i = 0; i <= maxX; i++) {
+                var start = i * size;
+                var end = start + size;
+                context.beginPath();
+                context.moveTo(start, 0);
+                context.lineTo(size * i, size * maxY);
+                context.stroke();
+                context.closePath();
+            }
+            //绘制水平线条
+            for (var i = 0; i <= maxY; i++) {
+                var start = i * size;
+                var end = start + size;
+                context.beginPath();
+                context.moveTo(0, size * i);
+                context.lineTo(size * maxX, size * i);
+                context.stroke();
+                context.closePath();
+            }
+        }
+    </script>
+
+</body>
+
+</html>
