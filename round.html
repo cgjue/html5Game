@@ -176,23 +176,21 @@
  
   */
         function clearLines() {
-            var count = 0;
-            /*var clearRowList = new Array();
-              for (var i = 0; i < maxY; i++) {
+            var clearRowList = [];
+            for (var i = 0; i < block.length; i++) {
                 var flag = true;
+                var y = block[i].y;
                 for (var j = 0; j < maxX; j++) {
-                    if (gameMap[i][j] == false) {
+                    if (gameMap[y][j] == false) {
                         flag = false;
                         break;
                     }
                 }
-                if (flag) {
-                    clearRowList.push(i); //记录消除行号的索引
+                if (flag && clearRowList.indexOf(y)<0) {
+                    clearRowList.push(y);
                 }
-            } 
-            
+            }
             var clearRows = clearRowList.length;
-            //所谓的消行就是将待消除行的索引，下方所有的格子上移动
             for (var x = 0; x < clearRows; x++) {
                 var index = clearRowList[x];
                 for (var i = index; i > 0; i--) {
@@ -210,26 +208,9 @@
                         }
                     }
                 }
-            }*/
-            for (var i = 0; i < block.length; i++) {
-                var flag = true;
-                var y = block[i].y;
-                for (var j = 0; j < maxX; j++) {
-                    if (gameMap[y][j] == false) {
-                        flag = false;
-                        break;
-                    }
-                }
-                if (flag) {
-                    count +=1;
-                    for (var i = y; i > 0; i--) {
-                        for (var j = 0; j < maxX; j++) {
-                            gameMap[i][j] = gameMap[i - 1][j];
-                        }
-                    }
-                }
             }
-            return count;
+            console.log(clearRowList);
+            return clearRows;
         }
         /**
  
@@ -298,10 +279,10 @@
         }
 
         function drawLevelScore(count) {
-            //进行消行动作
+            //进行消行动作          
             total +=count;
-            score +=~~(Math.log(level*4)*count*count*2);
-            if(score > 0 && (score-(level*(level+1))*300/2)>(level*300)){
+            score +=(level+4)*count*count;
+            if(count > 0 && (score-(level*(level+1)*225))>(level*250)){
                 level+=1;
             }
             context.fillStyle="black";
@@ -312,7 +293,7 @@
             context.fillText(txt1,(maxX+1)*size, (maxY+3)/2*size);
             var txt2 = "已消除: "+ total;
             context.fillText(txt2,(maxX+1)*size, (maxY+6)/2*size);
-            var txt3 = "成绩: " + score;            
+            var txt3 = "成绩: " + score;         
             context.fillText(txt3,(maxX+1)*size, (maxY+9)/2*size);
             if(bestScore<score){
                 bestScore = score;

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh_CN">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+ <meta http-equiv="X-UA-Compatible" content="ie=edge">
+ <title>弹弹球</title>
+ <style>
+  body {
+   margin: 0;
+   padding: 0;
+   justify-content: center;
+   align-items: center;
+  }
+  div{
+    display:inline-block;
+  }
+  .cmd{
+    height: 30px;
+    text-align: center;
+    margin-left: 15%;
+  }
+ </style>
+</head>
+<body>
+ <div class="cmd">
+    <button id="play" onclick="play()">play</button>
+    <div>本轮成绩:<span id="grade">0</span> 
+    最佳成绩:<span id="best">0</span></div>
+ </div>
+ 
+    <canvas id="can" style="background-color: black;margin:3px;">对不起，您的浏览器不支持canvas</canvas>
+ <script>
+  var bouncyBallData = localStorage.getItem('bouncyBall');
+  var bestIndex = localStorage.getItem('bestBouncyBallIndex');
+  if(!bouncyBallData){
+    bouncyBallData = [];
+    bestIndex = -1;
+  }else{
+    bouncyBallData = JSON.parse(bouncyBallData);
+    bestIndex = parseInt(bestIndex);
+    document.getElementById('best').innerHTML = bouncyBallData[bestIndex].grade;
+    
+  }
+  var size=8, speed=150, pause=0;
+  var maxX=screen.width>500?500:screen.width, maxY=screen.height>400?400:screen.height;
+  var minY = 4;
+  var ballList = [];
+  var plate = null;
+  var dXX = [-10, 0, 10, 0];
+  var dYY = [0, 10, 0, -10];
+  function Ball(x, y){
+    this.x = x, this.y = y;
+    this.x0 = x, this.y0 = y;
+    this.vx = 200, this.vy = -200;
+    this.size = 20, this.timer = 0;
+    var _this = this;
+    this.move = function(sec){
+      if(over)return;
+      _this.x0 = _this.x;
+      _this.y0 = _this.y;
+      _this.x += _this.vx*sec ;
+      _this.y += _this.vy*sec ;
+      if(_this.y > maxY - _this.size/2){
+        _this.y = maxY - _this.size/2;
+        _this.vy = -_this.vy;
+      }else if(_this.y - this.size/2 < plate.y){
+        var flag = 1;
+        if(_this.y0 - this.size/2 >=plate.y){
+          var x = _this.x0 - (_this.y0 - plate.y -this.size/2)/(_this.y0- _this.y)*(_this.x0-_this.x)
+          if(x >= plate.x-plate.width/2-this.size/2*0.8 && x <= plate.x + plate.width/2 + this.size/2*0.8){
+            flag =0;
+            _this.vy = -_this.vy;
+            _this.x = x;
+            _this.y = plate.y + this.size/2;
+          }
+        }
+        over = flag;
+      }
+      if(_this.x<_this.size/2) {
+        _this.x = _this.size/2;
+        _this.vx = -_this.vx;
+      }
+      else if(_this.x > maxX - _this.size/2){
+        _this.x = maxX - _this.size/2;
+        _this.vx = -_this.vx;
+      }
+    }
+    this.draw = function(color) {
+      box.fillStyle = color;
+      box.arc(_this.x, maxY - _this.y, _this.size/2, 0, 2*Math.PI); //用color填充一个矩形，以前两个参数为x，y坐标，后两个参数为宽和高。
+      //box.fillRect(_this.x, maxY - _this.y, _this.size/2,_this.size/2 );
+      box.fill();
+    }
+    this.run = function(){
+      _this.draw('black');
+      _this.move(1.0/50);
+      _this.draw('red');
+      if(over){
+        window.clearTimeout(_this.timer);
+      }
+      if(!pause)
+        _this.timer = window.setTimeout(run, 50);
+    }
+  }
+  function Plate(x){
+    this.x = x, this.y = minY;
+    this.width = 60, this.height = 4;
+    var _this = this;
+    this.draw = function(color) {
+      box.fillStyle = color;
+      box.fillRect(_this.x-_this.width/2, maxY - _this.y, _this.width, _this.height); //用color填充一个矩形，以前两个参数为x，y坐标，后两个参数为宽和高。
+    }
+    this.move = function(dx, dy){
+      _this.draw('black');
+      _this.x += dx;
+      _this.y += dy;
+      if(_this.y>maxY - _this.height) _this.y = maxY - _this.height;
+      else if(_this.y < minY) _this.y = minY;
+      if(_this.x < _this.width/2) _this.x = _this.width/2;
+      else if(_this.x>maxX - _this.width/2)_this.x = maxX - _this.width/2;
+      _this.draw('yellow');
+    }
+    
+  }
+  
+  function init(){
+    box.clearRect(0,0,maxX*size,maxY*size);
+    over=0, pause=0, eat=0, grade=0;
+    begin = new Date();    
+    updateGrade();
+    plate = new Plate(maxX/2);
+    plate.draw('yellow');
+    ballList = [];
+    var ball = new Ball(~~(Math.random()*maxX), ~~(Math.random()*(maxY-30))+30);
+    ballList.push(ball);
+
+  }
+  function run(){
+    for(var i = 0; i< ballList.length; i++){
+      ballList[i].run();
+    }
+  }
+  var canvas = document.getElementById('can');
+  canvas.width = maxX;
+  canvas.height = maxY;
+  var grade, difficult,begin, end, //snake队列表示蛇身，初始节点存在但不显示
+  timer=0, over=1,     //方向 、食物的位置、与下次移动的位置有关
+  box = canvas.getContext('2d');
+         //从0到399表示box里[0~19]*[0~19]的所有节点，每sizepx一个节点
+  function updateGrade(){
+        document.getElementById('grade').innerHTML = grade;
+        if(bestIndex<0){
+          document.getElementById('best').innerHTML = grade;
+        }else if(bouncyBallData[bestIndex].grade<grade){
+          document.getElementById('best').innerHTML = grade;
+        }
+  }
+  
+  
+  document.onkeydown = function(evt) {
+         //当键盘上下左右键摁下的时候改变direction
+   var keyCode =(evt || event).keyCode;
+   if(keyCode==32){//回车键
+       pause=!pause;
+       if(!pause){
+            play();
+       }
+   }else {   
+        var dir = keyCode-37;
+        if(dir >= 0 && dir < 4){
+          plate.move(dXX[dir], dYY[dir]);
+        }
+   } 
+ };
+document.addEventListener('touchstart', handleTouchStart, false);
+document.addEventListener('touchmove', handleTouchMove, false);
+
+var xDown = null;
+var yDown = null;
+
+function handleTouchStart(evt) {
+  xDown = evt.touches[0].clientX;
+  yDown = evt.touches[0].clientY;
+};
+
+function handleTouchMove(evt) {
+  evt.preventDefault();
+  if (!xDown || !yDown) {
+    return;
+  }
+  var xUp = evt.touches[0].clientX;
+  var yUp = evt.touches[0].clientY;
+
+  var xDiff = xDown - xUp;
+  var yDiff = yDown - yUp;
+  var dir = -xDiff/Math.abs(xDiff) + 1;
+  if (Math.abs(xDiff) < Math.abs(yDiff)) {
+    dir = -yDiff/Math.abs(yDiff) + 2;
+  }
+  plate.move(dXX[dir], dYY[dir])
+  xDown = null;
+  yDown = null;
+};
+  function store_grade(begin, end){
+    if(bestIndex<0){bestIndex=0}
+    else if(grade> bouncyBallData[bestIndex].grade){bestIndex=bouncyBallData.length;}
+    var item = {
+      eat: eat,
+      begin: begin,
+      end: end,
+      grade: grade
+    }
+    bouncyBallData.push(item);
+    localStorage.setItem('bouncyBall', JSON.stringify(bouncyBallData));
+    localStorage.setItem('bestBouncyBallIndex', JSON.stringify(bestIndex));
+  }
+  
+  function play(){
+        if(over){
+            init();
+        }
+        run();
+    }
+ </script>
+</body>
+</html>
