@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 
 <html>
@@ -23,7 +24,7 @@
             border: 6px solid grey;
            /* margin: 6% 35%;*/
         }
-        #quickDown, #round, #moveLeft, #moveRight{
+        #quickDown, #round, #moveLeft, #moveRight, #pause, #save{
             background: black;
             color: yellow;
             text-align: center;
@@ -44,8 +45,10 @@
     <canvas id="tetris" ></canvas>
     <div onclick="round()" id="round">变换</div>
     <div onclick="moveLeft()" id="moveLeft">左移</div>    
+    <div onclick="pause()" id="pause">暂停</div>
     <div onclick="moveRight()" id="moveRight">右移</div>
     <div onclick="quickDown()" id="quickDown">落地</div>
+    <div onclick="saveGame()" id="save">存档</div>
     <script type="text/javascript">
         var bestScore = localStorage.getItem('bestScore')|0;
         var canvas = document.getElementById("tetris");
@@ -63,17 +66,23 @@
         canvas.height = maxY*size;
         canvas.style.cssText = "margin-top:0px;margin-left:"+ 
             Math.max((screen.width-canvas.width-50)/2, 4)+"px;background-color: black;"; 
-        document.getElementById("round").style.cssText = "margin-left:" + (screen.width/2 -50) +"px;";
-        document.getElementById("moveLeft").style.cssText = "margin-left:" + (screen.width/2 -150) +"px;";
+        document.getElementById("round").style.cssText = "margin-left:" + (screen.width/2 -75) +"px;";
+        document.getElementById("moveLeft").style.cssText = "margin-left:" + (screen.width/2 -200) +"px;";
         document.getElementById("moveRight").style.cssText = "margin-left:" + (screen.width/2 + 50) +"px;margin-top:-40px";
-        document.getElementById("quickDown").style.cssText = "margin-left:" + (screen.width/2 -50) +"px;";
+        document.getElementById("save").style.cssText = "margin-left:" + (screen.width/2-250) +"px;margin-top:-40px";
+        document.getElementById("quickDown").style.cssText = "margin-left:" + (screen.width/2 -75) +"px;";
+        document.getElementById("pause").style.cssText = "margin-left:" + (screen.width/2-75) +"px;margin-top:-40px";
         var context = canvas.getContext("2d");
         
         var gameMap = new Array(); //游戏地图，二维数组
         var gameTimer;
-        initGame();
+        var gamePause = false;
+        if(!loadGame()){
+            initGame();
+        }
+        
         //绘制垂直线条
-        //drawGrid();
+        //initGame();();
         var arrays = basicBlockType();
         var blockIndex;
         //随机画一个方块意思意思
@@ -99,6 +108,28 @@
             level = 1;
             total = 0;
             drawLevelScore(0);
+        }
+
+        function saveGame(){
+            var data = {
+                "map" : gameMap,
+                "score": score,
+                "level": level,
+                "total": total
+            }
+            localStorage.setItem("gamedata", JSON.stringify(data));
+        }
+        function loadGame(){
+            var t = localStorage.getItem("gamedata");
+            if(t!=null && t!=""){
+                data = JSON.parse(t);
+                gameMap = data.map;
+                score = data.score;
+                level = data.level;
+                total = data.total;
+                return true;
+            }
+            return false;
         }
         /**
  
@@ -324,6 +355,17 @@
 
         function quickDown() {
             while (moveTo(0, 1));
+        }
+
+        function pause(){
+            if(!gamePause){
+                window.clearTimeout(gameTimer);
+                document.getElementById("pause").textContent="恢复";
+            }else{
+                document.getElementById("pause").textContent="暂停";
+                run();
+            }
+            gamePause = !gamePause;
         }
 
         function moveTo(moveX, moveY) {
