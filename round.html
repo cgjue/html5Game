@@ -215,15 +215,15 @@
         function clearLines() {
             var clearRowList = [];
             for (var i = 0; i < block.length; i++) {
-                
+                var flag=true;
                 var y = block[i].y;
                 for (var j = 0; j < maxX; j++) {
                     if (gameMap[y][j] == false) {
-                        continue;
+                        flag=false;
                         //break;
                     }
                 }
-                if (clearRowList.indexOf(y)<0) {
+                if (flag && clearRowList.indexOf(y)<0) {
                     clearRowList.push(y);
                 }
             }
