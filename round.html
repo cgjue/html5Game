@@ -10,7 +10,6 @@
  <meta http-equiv="X-UA-Compatible" content="ie=edge">
 
     <title>俄罗斯方块</title>
-    
     <style type="text/css">
         /*整个画布*/
         body {
@@ -41,14 +40,15 @@
 </head>
 
 <body>
-
+    <iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=298 height=52 src="https://music.163.com/outchain/player?type=1&id=3455381&auto=1&height=32"></iframe>
     <canvas id="tetris" ></canvas>
+    <div onclick="pause()" id="pause">暂停</div>
+    <div onclick="saveGame()" id="save">存档</div>
     <div onclick="round()" id="round">变换</div>
     <div onclick="moveLeft()" id="moveLeft">左移</div>    
-    <div onclick="pause()" id="pause">暂停</div>
     <div onclick="moveRight()" id="moveRight">右移</div>
     <div onclick="quickDown()" id="quickDown">落地</div>
-    <div onclick="saveGame()" id="save">存档</div>
+    
     <script type="text/javascript">
         var bestScore = localStorage.getItem('bestScore')|0;
         var canvas = document.getElementById("tetris");
@@ -65,13 +65,14 @@
         canvas.width = (maxX+7)*size;
         canvas.height = maxY*size;
         canvas.style.cssText = "margin-top:0px;margin-left:"+ 
-            Math.max((screen.width-canvas.width-50)/2, 4)+"px;background-color: black;"; 
-        document.getElementById("round").style.cssText = "margin-left:" + (screen.width/2 -75) +"px;";
+            Math.max((screen.width-canvas.width-size*20)/2, 4)+"px;background-color: black;"; 
+            document.getElementById("pause").style.cssText = "margin-left:" + (screen.width/2-225) +"px;margin-top:px";
+        document.getElementById("save").style.cssText = "margin-left:" + (screen.width/2+100) +"px;margin-top:-40px";
+        document.getElementById("round").style.cssText = "margin-left:" + (screen.width/2 -75) +"px;margin-top:-35px;";
         document.getElementById("moveLeft").style.cssText = "margin-left:" + (screen.width/2 -200) +"px;";
         document.getElementById("moveRight").style.cssText = "margin-left:" + (screen.width/2 + 50) +"px;margin-top:-40px";
-        document.getElementById("save").style.cssText = "margin-left:" + (screen.width/2-250) +"px;margin-top:-40px";
         document.getElementById("quickDown").style.cssText = "margin-left:" + (screen.width/2 -75) +"px;";
-        document.getElementById("pause").style.cssText = "margin-left:" + (screen.width/2-75) +"px;margin-top:-40px";
+        
         var context = canvas.getContext("2d");
         
         var gameMap = new Array(); //游戏地图，二维数组
@@ -127,6 +128,7 @@
                 score = data.score;
                 level = data.level;
                 total = data.total;
+                redrawGameMap();
                 return true;
             }
             return false;
@@ -209,15 +211,15 @@
         function clearLines() {
             var clearRowList = [];
             for (var i = 0; i < block.length; i++) {
-                var flag = true;
+                
                 var y = block[i].y;
                 for (var j = 0; j < maxX; j++) {
                     if (gameMap[y][j] == false) {
-                        flag = false;
+                        continue;
                         //break;
                     }
                 }
-                if (flag && clearRowList.indexOf(y)<0) {
+                if (clearRowList.indexOf(y)<0) {
                     clearRowList.push(y);
                 }
             }
@@ -313,7 +315,7 @@
             //进行消行动作          
             total +=count;
             score +=(level+4)*count*count;
-            if(count > 0 && (score-(level*(level+1)*225))>(level*250)){
+            if(count > 0 && (score-(level*(level+0.5)*150))>(level*180)){
                 level+=1;
             }
             context.fillStyle="black";
