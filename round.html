@@ -82,7 +82,9 @@
         if(!loadGame()){
             initGame();
         }
-        
+        if(canOver()){
+            initGame();
+        }
         //绘制垂直线条
         //initGame();();
         var arrays = basicBlockType();
