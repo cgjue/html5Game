@@ -75,23 +75,26 @@
         document.getElementById("quickDown").style.cssText = "margin-left:" + (screen.width/2 -50)*100/(screen.width) +"%;";
         
         var context = canvas.getContext("2d");
-        
+        var arrays = basicBlockType();
+        var blockIndex;
         var gameMap = new Array(); //游戏地图，二维数组
         var gameTimer;
         var gamePause = false;
         if(!loadGame()){
             initGame();
         }
+        var block;
+        var blockNI = getRandomIndex()
+        var blockN = getPointByCode(blockNI);
+        nextBlock();
         if(canOver()){
             initGame();
         }
         //绘制垂直线条
         //initGame();();
-        var arrays = basicBlockType();
-        var blockIndex;
+        
         //随机画一个方块意思意思
-        var block;
-        var blockNI = getRandomIndex()
+        blockNI = getRandomIndex()
         var blockN = getPointByCode(blockNI);
         nextBlock();
         drawBlock(block);
