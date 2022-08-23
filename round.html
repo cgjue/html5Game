@@ -133,6 +133,7 @@
                 level = data.level;
                 total = data.total;
                 redrawGameMap();
+                drawLevelScore(0);
                 return true;
             }
             return false;
@@ -207,6 +208,12 @@
             drawLevelScore(count);
         }
 
+    function asc(a,b) {
+        return a-b;
+    }
+    function desc(a,b) {
+        return b-a;
+    }
         /**
  
   * 消行动作，返回消除的行数
@@ -228,7 +235,7 @@
                 }
             }
             var clearRows = clearRowList.length;
-            clearRowList.sort();
+            clearRowList.sort(asc);
             for (var x = 0; x < clearRows; x++) {
                 var index = clearRowList[x];
                 for (var i = index; i > 0; i--) {
@@ -631,7 +638,7 @@
         }
 
         function getBlockColorByIndex(typeCodeIndex) {
-            var arrays = basicBlockColor();
+            //var arrays = basicBlockColor();
             return arrays[typeCodeIndex];
         }
         /**
