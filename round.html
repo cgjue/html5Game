@@ -189,6 +189,7 @@
                 add2GameMap();
                 //清除游戏区域内的不同颜色的格子，使用单一颜色重新绘制地图堆积物
                 redrawGameMap();
+                localStorage.setItem("gamedata", "");
                 return; //游戏结束
             }
 
@@ -235,7 +236,7 @@
                 }
             }
             var clearRows = clearRowList.length;
-            clearRowList.sort(asc);
+            clearRowList.sort(desc);
             for (var x = 0; x < clearRows; x++) {
                 var index = clearRowList[x];
                 for (var i = index; i > 0; i--) {
